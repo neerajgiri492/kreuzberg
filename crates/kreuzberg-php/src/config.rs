@@ -58,7 +58,6 @@ impl ExtractionConfig {
     }
 
     /// Load configuration from a TOML file.
-    #[php_static_method]
     pub fn from_file(path: String) -> PhpResult<Self> {
         let rust_config =
             kreuzberg::ExtractionConfig::from_file(&path).map_err(|e| format!("Failed to load config: {}", e))?;
@@ -66,7 +65,6 @@ impl ExtractionConfig {
     }
 
     /// Discover configuration file in current or parent directories.
-    #[php_static_method]
     pub fn discover() -> PhpResult<Self> {
         let rust_config = kreuzberg::ExtractionConfig::discover()
             .map_err(|e| format!("Failed to discover config: {}", e))?
@@ -414,7 +412,6 @@ impl EmbeddingModelType {
     /// ```php
     /// $model = EmbeddingModelType::preset("balanced");
     /// ```
-    #[php_static_method]
     pub fn preset(name: String) -> Self {
         Self {
             model_type: "preset".to_string(),
@@ -435,7 +432,6 @@ impl EmbeddingModelType {
     /// ```php
     /// $model = EmbeddingModelType::fastembed("BGEBaseENV15", 768);
     /// ```
-    #[php_static_method]
     pub fn fastembed(model: String, dimensions: i64) -> Self {
         Self {
             model_type: "fastembed".to_string(),
@@ -456,7 +452,6 @@ impl EmbeddingModelType {
     /// ```php
     /// $model = EmbeddingModelType::custom("my-custom-model", 512);
     /// ```
-    #[php_static_method]
     pub fn custom(model_id: String, dimensions: i64) -> Self {
         Self {
             model_type: "custom".to_string(),

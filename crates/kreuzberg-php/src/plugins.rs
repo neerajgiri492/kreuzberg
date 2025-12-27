@@ -134,12 +134,15 @@ thread_local! {
 pub fn kreuzberg_register_post_processor(name: String, callback: &Zval) -> PhpResult<()> {
     // Validate name
     if name.is_empty() {
-        return Err(PhpException::default("Post-processor name cannot be empty".to_string()).into());
+        return Err(PhpException::default("Post-processor name cannot be empty".to_string()));
     }
 
     // Validate callback is callable
     if !callback.is_callable() {
-        return Err(PhpException::default(format!("Post-processor '{}': callback must be callable", name)).into());
+        return Err(PhpException::default(format!(
+            "Post-processor '{}': callback must be callable",
+            name
+        )));
     }
 
     // Store callback in PHP registry
@@ -147,10 +150,13 @@ pub fn kreuzberg_register_post_processor(name: String, callback: &Zval) -> PhpRe
         let mut registry = registry.borrow_mut();
 
         if registry.contains_key(&name) {
-            return Err(PhpException::default(format!("Post-processor '{}' is already registered", name)).into());
+            return Err(PhpException::default(format!(
+                "Post-processor '{}' is already registered",
+                name
+            )));
         }
 
-        registry.insert(name.clone(), callback.clone());
+        registry.insert(name.clone(), callback.shallow_clone());
         Ok(())
     })
 }
@@ -182,7 +188,10 @@ pub fn kreuzberg_unregister_post_processor(name: String) -> PhpResult<()> {
         let mut registry = registry.borrow_mut();
 
         if registry.remove(&name).is_none() {
-            return Err(PhpException::default(format!("Post-processor '{}' is not registered", name)).into());
+            return Err(PhpException::default(format!(
+                "Post-processor '{}' is not registered",
+                name
+            )));
         }
 
         Ok(())
@@ -341,12 +350,15 @@ pub fn kreuzberg_run_post_processors(result: &mut ExtractionResult) -> PhpResult
 pub fn kreuzberg_register_validator(name: String, callback: &Zval) -> PhpResult<()> {
     // Validate name
     if name.is_empty() {
-        return Err(PhpException::default("Validator name cannot be empty".to_string()).into());
+        return Err(PhpException::default("Validator name cannot be empty".to_string()));
     }
 
     // Validate callback is callable
     if !callback.is_callable() {
-        return Err(PhpException::default(format!("Validator '{}': callback must be callable", name)).into());
+        return Err(PhpException::default(format!(
+            "Validator '{}': callback must be callable",
+            name
+        )));
     }
 
     // Register validator
@@ -354,10 +366,13 @@ pub fn kreuzberg_register_validator(name: String, callback: &Zval) -> PhpResult<
         let mut registry = registry.borrow_mut();
 
         if registry.contains_key(&name) {
-            return Err(PhpException::default(format!("Validator '{}' is already registered", name)).into());
+            return Err(PhpException::default(format!(
+                "Validator '{}' is already registered",
+                name
+            )));
         }
 
-        registry.insert(name.clone(), callback.clone());
+        registry.insert(name.clone(), callback.shallow_clone());
         Ok(())
     })
 }
@@ -389,7 +404,7 @@ pub fn kreuzberg_unregister_validator(name: String) -> PhpResult<()> {
         let mut registry = registry.borrow_mut();
 
         if registry.remove(&name).is_none() {
-            return Err(PhpException::default(format!("Validator '{}' is not registered", name)).into());
+            return Err(PhpException::default(format!("Validator '{}' is not registered", name)));
         }
 
         Ok(())
@@ -472,14 +487,13 @@ pub fn kreuzberg_run_validators(result: &mut Zval) -> PhpResult<()> {
                 .map_err(|e| PhpException::default(format!("Validator '{}' failed to execute: {}", name, e)))?;
 
             // Check if validator returned false (invalid)
-            if let Some(is_valid) = validation_result.extract::<bool>() {
-                if !is_valid {
-                    return Err(PhpException::default(format!(
-                        "Validation failed: validator '{}' returned false",
-                        name
-                    ))
-                    .into());
-                }
+            if let Some(is_valid) = validation_result.extract::<bool>()
+                && !is_valid
+            {
+                return Err(PhpException::default(format!(
+                    "Validation failed: validator '{}' returned false",
+                    name
+                )));
             }
 
             // If validator returned non-boolean, we assume it passed (threw exception if failed)
@@ -528,16 +542,19 @@ pub fn kreuzberg_run_validators(result: &mut Zval) -> PhpResult<()> {
 #[php_function]
 pub fn kreuzberg_register_extractor(mime_type: String, callback: &Zval) -> PhpResult<()> {
     if mime_type.trim().is_empty() {
-        return Err(PhpException::default("MIME type cannot be empty".to_string()).into());
+        return Err(PhpException::default("MIME type cannot be empty".to_string()));
     }
 
     if !callback.is_callable() {
-        return Err(PhpException::default(format!("Extractor for '{}': callback must be callable", mime_type)).into());
+        return Err(PhpException::default(format!(
+            "Extractor for '{}': callback must be callable",
+            mime_type
+        )));
     }
 
     EXTRACTOR_REGISTRY.with(|registry| {
         let mut registry = registry.borrow_mut();
-        registry.insert(mime_type.clone(), callback.clone());
+        registry.insert(mime_type.clone(), callback.shallow_clone());
         Ok(())
     })
 }
@@ -648,7 +665,10 @@ pub fn kreuzberg_clear_extractors() {
 #[php_function]
 pub fn kreuzberg_test_plugin(plugin_type: String, plugin_name: String, test_data: &mut Zval) -> PhpResult<bool> {
     if plugin_type != "extractor" {
-        return Err(PhpException::default(format!("Unsupported plugin type: {}", plugin_type)).into());
+        return Err(PhpException::default(format!(
+            "Unsupported plugin type: {}",
+            plugin_type
+        )));
     }
 
     EXTRACTOR_REGISTRY.with(|registry| {
@@ -681,18 +701,20 @@ pub fn kreuzberg_test_plugin(plugin_type: String, plugin_name: String, test_data
 
         if let Some(result_array) = result.array() {
             if result_array.get("content").is_none() {
-                return Err(PhpException::default("Extractor result must contain 'content' key".to_string()).into());
+                return Err(PhpException::default(
+                    "Extractor result must contain 'content' key".to_string(),
+                ));
             }
 
-            if let Some(content_val) = result_array.get("content") {
-                if content_val.str().is_none() {
-                    return Err(PhpException::default("'content' field must be a string".to_string()).into());
-                }
+            if let Some(content_val) = result_array.get("content")
+                && content_val.str().is_none()
+            {
+                return Err(PhpException::default("'content' field must be a string".to_string()));
             }
 
             Ok(true)
         } else {
-            Err(PhpException::default("Extractor must return an array".to_string()).into())
+            Err(PhpException::default("Extractor must return an array".to_string()))
         }
     })
 }
@@ -726,7 +748,7 @@ pub(crate) fn call_custom_extractor(mime_type: &str, bytes: &[u8]) -> PhpResult<
         let mut mime_zval = Zval::new();
         mime_zval.set_string(mime_type, false)?;
 
-        let args = vec![bytes_zval as &dyn IntoZvalDyn, mime_zval as &dyn IntoZvalDyn];
+        let args = vec![&bytes_zval as &dyn IntoZvalDyn, &mime_zval as &dyn IntoZvalDyn];
         let result = callback
             .try_call(args)
             .map_err(|e| PhpException::default(format!("Custom extractor callback failed: {:?}", e)))?;
